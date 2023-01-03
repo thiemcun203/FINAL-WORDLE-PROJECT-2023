@@ -1,6 +1,6 @@
 # INSTRUCTION
 1. To ensure that the interface works, please download these libraries or make sure you have these libraries: 
-  - math, numpy, os, sys, json, matplotlib
+  - math, random, numpy, os, sys, json, matplotlib
   - colorama to display color in terminal (pip install colorama)
 2. Clone or download ZIP all files and folders in this repository 'FINAL-WORDLE-PROJECT-2023'
 3. Open the folder 'FINAL-WORDLE-PROJECT-2023' with your favorite IDE (not just the subfiles, but all files in the folder)

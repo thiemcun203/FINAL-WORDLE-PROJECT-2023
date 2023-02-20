@@ -7,7 +7,12 @@ import numpy as np
 from math import *
 #algorithm use property of hardmode but it both accepts word in normal or hard in game simulation and game online
 #this version is different from others
+allowed_guesses=os.path.abspath('Data/allowed_guesses.txt')
 
+with open(allowed_guesses,'r') as file:
+    allowed_guesses=[]
+    for i in file:
+        allowed_guesses.append(i[:5])
 link=os.path.abspath('Data/real_possible_answers.txt')
 #open files to get data        
 with open(link,'r') as f:
@@ -200,17 +205,24 @@ def score_ranker(allowed_words,actual_fb,guess,num_of_guesses):
     res = {k:v for k,v in sorted(res.items(),key=lambda x:x[1])}
     return res
 
-def wordlebot_score_play(allowed_words,answer):
-    valid_words=allowed_words
+def solution_for_test(answer:str,word_list=allowed_guesses):
+    valid_words=word_list
     win=False
     i=guess_count=0
     res=list()
+    import time
+    time_guess=[0]*20
+    
+    
     while not win:
+        t1=time.time()
         if i==0:
             guess='tares'
             guess_count+=1
             res.append(guess)
+            
         else:
+
             fb = get_feedback(guess,answer)
             guess_count+=1
             ranker=score_ranker(valid_words,fb,guess, guess_count+1)
@@ -221,8 +233,11 @@ def wordlebot_score_play(allowed_words,answer):
             break
         valid_words=reduce_allowed_words(valid_words,guess,real_fb)
         i+=1
-    return res
+        t2=time.time()
+        time_guess[guess_count]=t2-t1
+    return res,time_guess
 
+        
 def solution_for_WordleBot(allowed_guesses=ALLOWED_WORDS) ->list:
     '''
     This function will display the process of auto play of WordleBot
@@ -417,6 +432,7 @@ def solution_for_realgame()->None:
     You dont need to retype all word typed before
     When you reach your answer or lose please enter something not 'yes' to end program
     '''
+    
     still_valid_words = ALLOWED_WORDS
     guess_board = [["_"]*5 for i in range(6)]
     feedback_board = [[None]*5 for i in range(6)]
@@ -478,18 +494,80 @@ def solution_for_realgame()->None:
 if __name__ == "__main__":
     
     # print(solution_for_test('hence'))
-    solution_for_WordleBot()
-    solution_for_simulationgame()
-    solution_for_realgame()
+    # solution_for_WordleBot()
+    # solution_for_simulationgame()
+    # solution_for_realgame()
     
-    # real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
-    # with open(real_possible_answers,"r") as file:
-    #     real_possible_answers=[]
-    #     for i in file:
-    #         real_possible_answers.append(i[:5])
+    real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
+    with open(real_possible_answers,"r") as file:
+        real_possible_answers=[]
+        for i in file:
+            real_possible_answers.append(i[:5])
     # TestModel(solution_for_test,real_possible_answers)
+    def TestModel(solution_for_test,test_list:list,RANDOM=False) -> tuple:
+        '''
+    Parameter
+    ----------
+    solution: The function return the number of step to guess a specific answer \n
+    test_list: The list of answers for testing
+    RANDOM: False, answer is chosen randomly and True, answer is chosen sequentially from the test_list
+    ----------
+    Return: The bar chart with x(number of guesses needed) and y (number of plays having x guesses) \n
+                The tupple of winrate and average score'''
+        import time
+        t1=time.time()
+        #Compute some vital factor: number of plays having x guesses, win rate, average score of 2,3k plays   
+        xMax=20 # may be positive infinity number
+        yMax=0 
+        lst=[0]*xMax
+        # list contains number of plays having x guesses
+        TIME=[0]*xMax
+        test_list=random.sample(test_list,110)
+        N=len(test_list)
+        for word in test_list:
+            if not RANDOM:
+                answer=word
+            elif RANDOM:
+                answer=random.choice(test_list)
+            pair=solution_for_test(answer)
+            NumberOfGuessesNeeded=len(pair[0])
+            lst[NumberOfGuessesNeeded]=lst[NumberOfGuessesNeeded]+1
+            time_guess_1= pair[1]
+            for i in range(xMax):
+                TIME[i]+=time_guess_1[i]    
+        winrate=sum(lst[1:7])/N*100
+        average=sum([i*lst[i] for i in range(1,xMax)]) / N
+        average_time_to_guess_eachstep=[]
+        Remain=N
+        for i in range(1,xMax):
+            Remain-=lst[i]
+            if Remain !=0:
+                average_time_to_guess_eachstep.append(TIME[i]/Remain)
+            
+        #VISUALIZATION
+        for i in range(1,xMax):
+            if lst[i] >=yMax: # because yMax always in (1,6)
+                yMax=lst[i]
+            if lst[i]==0 and i>6:
+                xMax=i
+                break
+        yMax=(yMax//100+2)*100
+        x=[str(i) for i in range(1,xMax)]
+        y=[i for i in lst[1:xMax]]
+        plt.ylim(0,yMax)
+        plt.grid(axis='y',linestyle='--')
+        plt.xlabel('Number of guesses needed')
+        plt.ylabel('Number of plays having x guesses')
+        plt.title('TEST PERFORMANCE')
+        plt.bar(x,y, fc="#CCD6A6", ec="black")
+        for i in range(len(x)):
+            plt.text(i, y[i], y[i], ha="center", va="bottom")
+        t2=time.time()
+        time=t2-t1
+        plt.text(xMax,yMax/2, f'Win Rate: {winrate:.3f}%\nAverage Score: {average:.3f}\nTime: {time:.3f}s', fontsize = 20,
+            bbox = dict(facecolor = '#CCD6A6', alpha = 0.7))
+        plt.show()
+        return winrate,average, average_time_to_guess_eachstep
+    print(TestModel(solution_for_test,real_possible_answers))
     
-
-
-
-
+    

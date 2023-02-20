@@ -20,7 +20,10 @@ CommonWord=3000
 def get_freq(word_freq_ggdict:list,CommonWord=CommonWord,Width=10) -> dict:
     #make sorted word list by freq
     lst=list(word_freq_ggdict.items())
-    lst.sort(key=lambda x: x[1])
+    lst.sort(key=lambda x: x[1],reverse=True)
+    for i in lst[:24]:
+        print(i[1])
+        
     
     #add word into horizontal axis of sigmoid function
     N=len(word_freq_ggdict)
@@ -29,7 +32,7 @@ def get_freq(word_freq_ggdict:list,CommonWord=CommonWord,Width=10) -> dict:
     for pair, unit in zip(lst,metric):
         priors[pair[0]]=sigmoid(unit)
     return priors
-frequency=get_freq(word_freq_ggdict)
+get_freq(word_freq_ggdict)
 def entropy(guess:str, possible_answers:list):
     '''Function compute the entropy of each word which could be chosen in hard mode \n
     Return value of entropy(bits)'''
@@ -83,17 +86,28 @@ def solution_for_test(answer:str,word_list=allowed_guesses) -> list:
     tupple of guess_count and actual_guesses_list
     guesses_list: (list) list of guesses needed to reach the actual answer.
     '''
+    import time
     guesses_list=[]
     word_list=allowed_guesses
+    k=1
+    time_guess=[0]*20
+    t1=time.time()
     guess=fl[0][0]
+    t2=time.time()
+    time_guess[1]=t2-t1
+    guesses_list.append(guess)
     while True:
-        guesses_list.append(guess)
+        k+=1
+        start=time.time()
         feedback=get_feedback(guess,answer)
         if check_win(feedback):
             break
         word_list=reduce_list(guess,feedback,word_list)
         guess=entropy_dict(word_list)[0][0]
-    return guesses_list
+        end=time.time()
+        time_guess[k]=end-start
+        guesses_list.append(guess)
+    return guesses_list,time_guess
 
 def solution_for_WordleBot(allowed_guesses=allowed_guesses) ->list:
     '''
@@ -336,16 +350,80 @@ if __name__ == "__main__":
     
     # print(solution_for_test('hence'))
     # solution_for_WordleBot()
-    solution_for_simulationgame()
+    # solution_for_simulationgame()
     # solution_for_realgame()
     
-    # real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
-    # with open(real_possible_answers,"r") as file:
-    #     real_possible_answers=[]
-    #     for i in file:
-    #         real_possible_answers.append(i[:5])
+    real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
+    with open(real_possible_answers,"r") as file:
+        real_possible_answers=[]
+        for i in file:
+            real_possible_answers.append(i[:5])
     # TestModel(solution_for_test,real_possible_answers)
-
+    def TestModel(solution_for_test,test_list:list,RANDOM=False) -> tuple:
+        '''
+    Parameter
+    ----------
+    solution: The function return the number of step to guess a specific answer \n
+    test_list: The list of answers for testing
+    RANDOM: False, answer is chosen randomly and True, answer is chosen sequentially from the test_list
+    ----------
+    Return: The bar chart with x(number of guesses needed) and y (number of plays having x guesses) \n
+                The tupple of winrate and average score'''
+        import time
+        t1=time.time()
+        #Compute some vital factor: number of plays having x guesses, win rate, average score of 2,3k plays   
+        xMax=20 # may be positive infinity number
+        yMax=0 
+        lst=[0]*xMax
+        N=len(test_list)# list contains number of plays having x guesses
+        TIME=[0]*xMax
+        test_list=random.sample(test_list,230)
+        for word in test_list:
+            if not RANDOM:
+                answer=word
+            elif RANDOM:
+                answer=random.choice(test_list)
+            pair=solution_for_test(answer)
+            NumberOfGuessesNeeded=len(pair[0])
+            lst[NumberOfGuessesNeeded]=lst[NumberOfGuessesNeeded]+1
+            time_guess_1= pair[1]
+            for i in range(xMax):
+                TIME[i]+=time_guess_1[i]    
+        winrate=sum(lst[1:7])/N*100
+        average=sum([i*lst[i] for i in range(1,xMax)]) / N
+        average_time_to_guess_eachstep=[]
+        Remain=N
+        for i in range(1,xMax):
+            Remain-=lst[i]
+            if Remain !=0:
+                average_time_to_guess_eachstep.append(TIME[i]/Remain)
+            
+        #VISUALIZATION
+        for i in range(1,xMax):
+            if lst[i] >=yMax: # because yMax always in (1,6)
+                yMax=lst[i]
+            if lst[i]==0 and i>6:
+                xMax=i
+                break
+        yMax=(yMax//100+2)*100
+        x=[str(i) for i in range(1,xMax)]
+        y=[i for i in lst[1:xMax]]
+        plt.ylim(0,yMax)
+        plt.grid(axis='y',linestyle='--')
+        plt.xlabel('Number of guesses needed')
+        plt.ylabel('Number of plays having x guesses')
+        plt.title('TEST PERFORMANCE')
+        plt.bar(x,y, fc="#CCD6A6", ec="black")
+        for i in range(len(x)):
+            plt.text(i, y[i], y[i], ha="center", va="bottom")
+        t2=time.time()
+        time=t2-t1
+        plt.text(xMax,yMax/2, f'Win Rate: {winrate:.3f}%\nAverage Score: {average:.3f}\nTime: {time:.3f}s', fontsize = 20,
+            bbox = dict(facecolor = '#CCD6A6', alpha = 0.7))
+        plt.show()
+        return winrate,average, average_time_to_guess_eachstep
+    # print(TestModel(solution_for_test,real_possible_answers))
+    
     
     
     

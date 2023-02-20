@@ -21,17 +21,32 @@ def solution_for_test(answer:str,word_list=allowed_guesses,mode={0,1,2}) -> list
     tupple of guess_count and actual_guesses_list
     guesses_list: (list) list of guesses needed to reach the actual answer.
     '''
+    import time
     guesses_list=[]
     word_list=allowed_guesses
+    
+    time_guess=[0]*20
+    k=1
+    t1=time.time()
+    guess=random.choice(word_list)
+    guesses_list.append(guess)
+    t2=time.time()
+    time_guess[1]=t2-t1
     while True:
-        guess=random.choice(word_list)
-        guesses_list.append(guess)
+        k+=1
+        start= time.time()
         feedback=get_feedback(guess,answer)
         if check_win(feedback):
             break
         word_list=REDUCE_LIST(guess,feedback,word_list,mode)
+        guess=random.choice(word_list)
+        end=time.time()
+        if k>1:
+            time_guess[k]=time_guess[k]+end-start
+        guesses_list.append(guess)
         
-    return guesses_list
+    return guesses_list,time_guess
+
 def solution_for_WordleBot(allowed_guesses=allowed_guesses) ->list:
     '''
     This function will display the process of auto play of WordleBot
@@ -246,17 +261,80 @@ def solution_for_realgame()->None:
 
 if __name__ == "__main__":
     
-    # solution_for_test('happy')
-    # solution_for_WordleBot()
-    # solution_for_simulationgame()
-    solution_for_realgame()
+    # # solution_for_test('happy')
+    # # solution_for_WordleBot()
+    # # solution_for_simulationgame()
+    # solution_for_realgame()
     
-    # real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
-    # with open(real_possible_answers,"r") as file:
-    #     real_possible_answers=[]
-    #     for i in file:
-    #         real_possible_answers.append(i[:5])
-    # TestModel(solution_for_test,real_possible_answers)
+    real_possible_answers=os.path.abspath('Data/real_possible_answers.txt')
+    with open(real_possible_answers,"r") as file:
+        real_possible_answers=[]
+        for i in file:
+            real_possible_answers.append(i[:5])
+    # 
+    def TestModel(solution_for_test,test_list:list,RANDOM=False) -> tuple:
+        '''
+    Parameter
+    ----------
+    solution: The function return the number of step to guess a specific answer \n
+    test_list: The list of answers for testing
+    RANDOM: False, answer is chosen randomly and True, answer is chosen sequentially from the test_list
+    ----------
+    Return: The bar chart with x(number of guesses needed) and y (number of plays having x guesses) \n
+                  The tupple of winrate and average score'''
+        import time
+        t1=time.time()
+        #Compute some vital factor: number of plays having x guesses, win rate, average score of 2,3k plays   
+        xMax=20 # may be positive infinity number
+        yMax=0 
+        lst=[0]*xMax
+        N=len(test_list)# list contains number of plays having x guesses
+        TIME=[0]*xMax
+        for word in test_list:
+            if not RANDOM:
+                answer=word
+            elif RANDOM:
+                answer=random.choice(test_list)
+            pair=solution_for_test(answer)
+            NumberOfGuessesNeeded=len(pair[0])
+            lst[NumberOfGuessesNeeded]=lst[NumberOfGuessesNeeded]+1
+            time_guess_1= pair[1]
+            for i in range(xMax):
+                TIME[i]+=time_guess_1[i]    
+        winrate=sum(lst[1:7])/N*100
+        average=sum([i*lst[i] for i in range(1,xMax)]) / N
+        average_time_to_guess_eachstep=[]
+        Remain=N
+        for i in range(1,xMax):
+            Remain-=lst[i]
+            if Remain !=0:
+                average_time_to_guess_eachstep.append(TIME[i]/Remain)
+            
+        #VISUALIZATION
+        for i in range(1,xMax):
+            if lst[i] >=yMax: # because yMax always in (1,6)
+                yMax=lst[i]
+            if lst[i]==0 and i>6:
+                xMax=i
+                break
+        yMax=(yMax//100+2)*100
+        x=[str(i) for i in range(1,xMax)]
+        y=[i for i in lst[1:xMax]]
+        plt.ylim(0,yMax)
+        plt.grid(axis='y',linestyle='--')
+        plt.xlabel('Number of guesses needed')
+        plt.ylabel('Number of plays having x guesses')
+        plt.title('TEST PERFORMANCE')
+        plt.bar(x,y, fc="#CCD6A6", ec="black")
+        for i in range(len(x)):
+            plt.text(i, y[i], y[i], ha="center", va="bottom")
+        t2=time.time()
+        time=t2-t1
+        plt.text(xMax,yMax/2, f'Win Rate: {winrate:.3f}%\nAverage Score: {average:.3f}\nTime: {time:.3f}s', fontsize = 20,
+            bbox = dict(facecolor = '#CCD6A6', alpha = 0.7))
+        plt.show()
+        return winrate,average, average_time_to_guess_eachstep
+    print(TestModel(solution_for_test,real_possible_answers))
 
     
     
